@@ -29,6 +29,8 @@ router.get("/:ISBN_Books", async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+// SEARCH
 router.get("/", async (req, res) => {
   try {
     const query = util.promisify(conn.query).bind(conn);
@@ -40,11 +42,6 @@ router.get("/", async (req, res) => {
     }
 
     const book = await query(`SELECT * FROM books ${search}`);
-
-    // Manipulating image URL to include the hostname
-    // movies.forEach((book) => {
-    //   movie.image_url = `http://${req.hostname}:4000/${movie.image_url}`;
-    // });
 
     return res.status(200).json(book);
   } catch (err) {
@@ -170,15 +167,34 @@ router.delete("/:ISBN_Books", async (req, res) => {
       return res.status(400).json({ error: "ISBN is required" });
     }
 
-    // Query to delete the book from the database
-    const deleteQuery = "DELETE FROM books WHERE ISBN_Books = ?";
+    // Query to fetch the book's file names from the database
+    const fetchQuery =
+      "SELECT Book_Image, Book_File FROM Books WHERE ISBN_Books = ?";
+    const [book] = await util.promisify(conn.query).bind(conn)(fetchQuery, [
+      ISBN_Books,
+    ]);
+
+    if (!book) {
+      return res.status(404).json({ error: "Book not found" });
+    }
+
+    // Deleting the book from the database
+    const deleteQuery = "DELETE FROM Books WHERE ISBN_Books = ?";
     const deleteResult = await util.promisify(conn.query).bind(conn)(
       deleteQuery,
       [ISBN_Books]
     );
 
-    // Check if the book was successfully deleted
+    // Check if the book was successfully deleted from the database
     if (deleteResult.affectedRows > 0) {
+      // Unlinking the book files from the file system
+      if (book.Book_Image) {
+        fs.unlinkSync(`Images/${book.Book_Image}`);
+      }
+      if (book.Book_File) {
+        fs.unlinkSync(`Images/${book.Book_File}`);
+      }
+
       return res.status(200).json({ message: "Book deleted successfully" });
     } else {
       return res.status(404).json({ error: "Book not found" });
@@ -188,5 +204,86 @@ router.delete("/:ISBN_Books", async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+// UPDATE BOOK
+router.put(
+  "/:ISBN_Books",
+  upload.fields([
+    { name: "Book_Image", maxCount: 1 },
+    { name: "Book_File", maxCount: 1 },
+  ]),
+  async (req, res) => {
+    try {
+      const ISBN_Books = req.params.ISBN_Books;
+      const { Title, Description, Author, Genre } = req.body;
+
+      // Check if the ISBN is provided
+      if (!ISBN_Books) {
+        return res.status(400).json({ error: "ISBN is required" });
+      }
+
+      // Query to fetch the existing book from the database
+      const fetchQuery = "SELECT * FROM books WHERE ISBN_Books = ?";
+      const [existingBook] = await util.promisify(conn.query).bind(conn)(
+        fetchQuery,
+        [ISBN_Books]
+      );
+
+      if (!existingBook) {
+        return res.status(404).json({ error: "Book not found" });
+      }
+
+      // Update book information if provided
+      if (Title) existingBook.Title = Title;
+      if (Description) existingBook.Description = Description;
+      if (Author) existingBook.Author = Author;
+      if (Genre) existingBook.Genre = Genre;
+
+      // Check if files were uploaded
+      if (req.files) {
+        if (req.files["Book_Image"]) {
+          // Delete old image if exists
+          if (existingBook.Book_Image) {
+            fs.unlinkSync(`Images/${existingBook.Book_Image}`);
+          }
+          existingBook.Book_Image = req.files["Book_Image"][0].filename;
+        }
+        if (req.files["Book_File"]) {
+          // Delete old file if exists
+          if (existingBook.Book_File) {
+            fs.unlinkSync(`Images/${existingBook.Book_File}`);
+          }
+          existingBook.Book_File = req.files["Book_File"][0].filename;
+        }
+      }
+
+      // Query to update the book in the database
+      const updateQuery =
+        "UPDATE Books SET Title = ?, Description = ?, Author = ?, Genre = ?, Book_Image = ?, Book_File = ? WHERE ISBN_Books = ?";
+      const updateResult = await util.promisify(conn.query).bind(conn)(
+        updateQuery,
+        [
+          existingBook.Title,
+          existingBook.Description,
+          existingBook.Author,
+          existingBook.Genre,
+          existingBook.Book_Image,
+          existingBook.Book_File,
+          ISBN_Books,
+        ]
+      );
+
+      // Check if the book was successfully updated in the database
+      if (updateResult.affectedRows > 0) {
+        return res.status(200).json({ message: "Book updated successfully" });
+      } else {
+        return res.status(500).json({ error: "Failed to update book" });
+      }
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+);
 
 module.exports = router;
