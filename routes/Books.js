@@ -6,9 +6,10 @@ const { body, validationResult } = require("express-validator");
 const conn = require("../dB/dbConnection");
 const fs = require("fs");
 const upload = require("../middleware/uploadBooks");
-
+const admin = require("../middleware/admin");
+const authorized = require("../middleware/authorize");
 // SHOW SPECIFIC BOOK
-router.get("/:ISBN_Books", async (req, res) => {
+router.get("/:ISBN_Books", admin, async (req, res) => {
   try {
     const ISBN_Books = req.params.ISBN_Books; // Add this line to check
 
@@ -31,7 +32,7 @@ router.get("/:ISBN_Books", async (req, res) => {
 });
 
 // SEARCH
-router.get("/", async (req, res) => {
+router.get("/", authorized, async (req, res) => {
   try {
     const query = util.promisify(conn.query).bind(conn);
     let search = "";
@@ -71,7 +72,7 @@ router.get("/", async (req, res) => {
 // ADD BOOK
 router.post(
   "",
-  // Add any middleware like admin authentication here if needed
+  admin,
   upload.fields([
     { name: "Book_Image", maxCount: 1 },
     { name: "Book_File", maxCount: 1 },
@@ -158,7 +159,7 @@ router.post(
 );
 
 // DElETE BOOK
-router.delete("/:ISBN_Books", async (req, res) => {
+router.delete("/:ISBN_Books", admin, async (req, res) => {
   try {
     const ISBN_Books = req.params.ISBN_Books;
 
@@ -208,6 +209,7 @@ router.delete("/:ISBN_Books", async (req, res) => {
 // UPDATE BOOK
 router.put(
   "/:ISBN_Books",
+  admin,
   upload.fields([
     { name: "Book_Image", maxCount: 1 },
     { name: "Book_File", maxCount: 1 },
@@ -287,7 +289,6 @@ router.put(
 );
 
 // COUNT AVAILABLE BOOKS
-
 router.get("/availability/count", async (req, res) => {
   try {
     const sql =

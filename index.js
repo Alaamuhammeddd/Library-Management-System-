@@ -10,6 +10,7 @@ const auth = require("./routes/Auth");
 const books = require("./routes/Books");
 const review = require("./routes/Review");
 const admin = require("./routes/Admin");
+const borrowing = require("./routes/Borrow");
 
 app.listen(4000, "localhost", () => {
   console.log("SERVER IS RUNNING");
@@ -18,3 +19,4 @@ app.use("/auth", auth);
 app.use("/books", books);
 app.use("/review", review);
 app.use("/admin", admin);
+app.use("/borrow", borrowing);
