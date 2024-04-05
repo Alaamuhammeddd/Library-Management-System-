@@ -286,4 +286,23 @@ router.put(
   }
 );
 
+// COUNT AVAILABLE BOOKS
+
+router.get("/availability/count", async (req, res) => {
+  try {
+    const sql =
+      "SELECT COUNT(*) AS AvailableBooks FROM books WHERE `Availability status`='Yes'";
+    conn.query(sql, (err, result) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+      res.json(result[0]);
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 module.exports = router;
