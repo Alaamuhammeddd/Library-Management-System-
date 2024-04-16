@@ -9,6 +9,7 @@ const upload = require("../middleware/uploadBooks");
 const jwt = require("jsonwebtoken");
 const authorized = require("../middleware/authorize");
 
+//BORROW BOOKS
 router.post("/:ISBN_Books", authorized, async (req, res) => {
   try {
     // Extract token from request headers
@@ -30,6 +31,22 @@ router.post("/:ISBN_Books", authorized, async (req, res) => {
       const currentDate = new Date();
       currentDate.setDate(currentDate.getDate() + 14); // Adding 14 days to the current date
       returnDate = currentDate.toISOString().split("T")[0]; // Format as YYYY-MM-DD
+    }
+    const countQuery =
+      "SELECT COUNT(*) AS borrowedCount FROM transactions WHERE id_Users = ?";
+    const [borrowedCountResult] = await util.promisify(conn.query).bind(conn)(
+      countQuery,
+      [userId]
+    );
+    const borrowedCount = borrowedCountResult.borrowedCount;
+
+    if (borrowedCount >= 3) {
+      return res
+        .status(400)
+        .json({
+          error:
+            "You have already borrowed three books. You cannot borrow more books until you return some.",
+        });
     }
 
     // Check if the book is available
@@ -82,6 +99,37 @@ router.post("/:ISBN_Books", authorized, async (req, res) => {
     if (err.name === "JsonWebTokenError") {
       return res.status(401).json({ error: "Invalid token" });
     }
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// GET BORROWED BOOKS
+router.get("/:userId", async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    // Query to fetch the required details of borrowed books along with the remaining days for return
+    const query = `
+      SELECT T.ISBN_Book AS ISBN_Books, T.dataDue, B.Title, B.Book_Image, B.Author, B.Genre,
+             DATEDIFF(T.dataDue, CURDATE()) AS remainingDays
+      FROM Transactions T
+      INNER JOIN Books B ON T.ISBN_Book = B.ISBN_Books
+      WHERE T.id_Users = ? AND B.\`Availability status\` = 'No'
+      ORDER BY remainingDays ASC;
+    `;
+    const borrowedBooks = await util.promisify(conn.query).bind(conn)(query, [
+      userId,
+    ]);
+
+    if (borrowedBooks.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No borrowed books found for the user" });
+    }
+
+    return res.status(200).json({ borrowedBooks });
+  } catch (err) {
+    console.error(err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });

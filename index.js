@@ -11,6 +11,7 @@ const books = require("./routes/Books");
 const review = require("./routes/Review");
 const admin = require("./routes/Admin");
 const borrowing = require("./routes/Borrow");
+const returning = require("./routes/Return");
 
 app.listen(4000, "localhost", () => {
   console.log("SERVER IS RUNNING");
@@ -20,3 +21,4 @@ app.use("/books", books);
 app.use("/review", review);
 app.use("/admin", admin);
 app.use("/borrow", borrowing);
+app.use("/return", returning);
