@@ -41,12 +41,10 @@ router.post("/:ISBN_Books", authorized, async (req, res) => {
     const borrowedCount = borrowedCountResult.borrowedCount;
 
     if (borrowedCount >= 3) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "You have already borrowed three books. You cannot borrow more books until you return some.",
-        });
+      return res.status(400).json({
+        error:
+          "You have already borrowed three books. You cannot borrow more books until you return some.",
+      });
     }
 
     // Check if the book is available
@@ -134,4 +132,54 @@ router.get("/:userId", async (req, res) => {
   }
 });
 
+router.patch("/extend/:transactionId", authorized, async (req, res) => {
+  try {
+    const transactionId = req.params.transactionId;
+    const additionalDays = parseInt(req.body.additionalDays, 10);
+
+    // Validate input
+    if (!additionalDays || additionalDays <= 0) {
+      return res
+        .status(400)
+        .json({ error: "Invalid number of additional days provided." });
+    }
+    const maxAdditionalDays = 7;
+    if (additionalDays > maxAdditionalDays) {
+      return res.status(400).json({
+        error: `Maximum additional days allowed is ${maxAdditionalDays}.`,
+      });
+    }
+    // Fetch current due date from transactions
+    const fetchDueDateQuery =
+      "SELECT dataDue FROM transactions WHERE id_Transactions = ?";
+    const [currentData] = await util.promisify(conn.query).bind(conn)(
+      fetchDueDateQuery,
+      [transactionId]
+    );
+
+    if (!currentData) {
+      return res.status(404).json({ error: "Transaction not found." });
+    }
+
+    const currentDueDate = new Date(currentData.dataDue);
+    currentDueDate.setDate(currentDueDate.getDate() + additionalDays); // Adding additional days
+
+    const newDueDate = currentDueDate.toISOString().split("T")[0]; // Format as YYYY-MM-DD
+
+    // Update the due date in the database
+    const updateDueDateQuery =
+      "UPDATE transactions SET dataDue = ? WHERE id_Transactions = ?";
+    await util.promisify(conn.query).bind(conn)(updateDueDateQuery, [
+      newDueDate,
+      transactionId,
+    ]);
+
+    res
+      .status(200)
+      .json({ message: "Borrowing period extended successfully.", newDueDate });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 module.exports = router;
