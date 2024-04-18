@@ -7,6 +7,9 @@ const crypto = require("crypto");
 const csrf = require("csurf");
 const csrfProtection = csrf({ cookie: true });
 const rateLimit = require("express-rate-limit");
+require("dotenv").config();
+const jwt = require("jsonwebtoken");
+
 const loginLimiter = rateLimit({
   windowMs: 5 * 1000, // 5 seconds
   max: 5, // limit each IP to 5 login attempts per windowMs
@@ -32,6 +35,7 @@ router.post(
 
       // 2- CHECK IF EMAIL EXISTS
       const query = util.promisify(conn.query).bind(conn);
+      const secretKey = crypto.randomBytes(32).toString("hex");
       const user = await query("SELECT * FROM users WHERE Email = ?", [
         req.body.Email,
       ]);
@@ -52,11 +56,13 @@ router.post(
       console.log("Check Password:", checkPassword);
 
       if (checkPassword) {
+        const token = jwt.sign({ userId: user[0].id }, secretKey, {
+          expiresIn: "1h",
+          // Token expiration time
+        });
         delete user[0].Password;
-        return res.status(200).json(user[0]);
+        return res.status(200).json({ user, token });
       } else {
-        console.log("Entered password:", req.body.Password);
-        console.log("Stored hashed password:", user[0].Password);
         return res.status(404).json({
           errors: [{ msg: "Email or Password not found!" }],
         });
