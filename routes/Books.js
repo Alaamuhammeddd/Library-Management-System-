@@ -9,7 +9,7 @@ const upload = require("../middleware/uploadBooks");
 const admin = require("../middleware/admin");
 const authorized = require("../middleware/authorize");
 // SHOW SPECIFIC BOOK
-router.get("/:ISBN_Books", admin, async (req, res) => {
+router.get("/:ISBN_Books", async (req, res) => {
   try {
     const ISBN_Books = req.params.ISBN_Books; // Add this line to check
 
@@ -32,7 +32,7 @@ router.get("/:ISBN_Books", admin, async (req, res) => {
 });
 
 // SEARCH
-router.get("/", authorized, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const query = util.promisify(conn.query).bind(conn);
     let search = "";
@@ -80,7 +80,7 @@ router.post(
   body("Title")
     .isString()
     .withMessage("Please enter a valid book title")
-    .isLength({ min: 10 })
+    .isLength({ min: 6 })
     .withMessage("Book title should be at least 10 characters"),
 
   body("Description")
@@ -288,11 +288,11 @@ router.put(
   }
 );
 
-// COUNT AVAILABLE BOOKS
-router.get("/availability/count", async (req, res) => {
+// COUNT Borrowed BOOKS
+router.get("/Borrowed/count", async (req, res) => {
   try {
     const sql =
-      "SELECT COUNT(*) AS AvailableBooks FROM books WHERE `Availability status`='Yes'";
+      "SELECT COUNT(*) AS BorrowedBooks FROM books WHERE `Availability status`='No'";
     conn.query(sql, (err, result) => {
       if (err) {
         console.error(err);

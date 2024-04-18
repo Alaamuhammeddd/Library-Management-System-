@@ -12,6 +12,7 @@ const review = require("./routes/Review");
 const admin = require("./routes/Admin");
 const borrowing = require("./routes/Borrow");
 const returning = require("./routes/Return");
+const myTransactions = require("./routes/ViewMyTransactions");
 
 app.listen(4000, "localhost", () => {
   console.log("SERVER IS RUNNING");
@@ -22,3 +23,4 @@ app.use("/review", review);
 app.use("/admin", admin);
 app.use("/borrow", borrowing);
 app.use("/return", returning);
+app.use("/my-transactions", myTransactions);
