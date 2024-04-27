@@ -13,6 +13,7 @@ const admin = require("./routes/Admin");
 const borrowing = require("./routes/Borrow");
 const returning = require("./routes/Return");
 const myTransactions = require("./routes/ViewMyTransactions");
+const forgetPassword = require("./routes/ForgetPassword");
 
 app.listen(4000, "localhost", () => {
   console.log("SERVER IS RUNNING");
@@ -24,3 +25,4 @@ app.use("/admin", admin);
 app.use("/borrow", borrowing);
 app.use("/return", returning);
 app.use("/my-transactions", myTransactions);
+app.use("/forget-password", forgetPassword);
